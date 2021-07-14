@@ -1,18 +1,19 @@
 // libccp rust bindings
+#![allow(deref_nullptr, non_snake_case)]
 include!(concat!(env!("OUT_DIR"), "/libccp.rs"));
 
 use super::DatapathObj;
 
 #[no_mangle]
 pub extern "C" fn send_msg(
-    conn: *mut ccp_connection,
+    dp: *mut ccp_datapath,
     msg: *mut ::std::os::raw::c_char,
     msg_size: ::std::os::raw::c_int,
 ) -> std::os::raw::c_int {
     // get the impl CcpDatapath
     let mut dp: Box<DatapathObj> = unsafe {
         use std::mem;
-        let dp = mem::transmute((*(*conn).datapath).impl_);
+        let dp = mem::transmute((*dp).impl_);
         Box::from_raw(dp)
     };
 

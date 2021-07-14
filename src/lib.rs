@@ -35,18 +35,53 @@ pub trait DatapathOps {
 
 struct DatapathObj(Box<dyn DatapathOps>);
 
-/// Represents datapath functionality.
-/// libccp state is freed when this is dropped.
-pub struct Datapath(ccp::ccp_datapath);
+/// Construct a datapath object.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// struct Dp;
+/// impl libccp::DatapathOps for Dp {
+///     fn send_msg(&mut self, msg: &[u8]) {
+///         println!("sent message: {:?}", msg);
+///     }
+/// }
+///
+/// fn main() {
+///   let dp = Dp;
+///   libccp::DatapathBuilder::default().with_ops(dp).with_id(57).init();
+/// }
+/// ```
+#[derive(Debug)]
+pub struct DatapathBuilder<T> {
+    id: u32,
+    ops: T,
+}
 
-unsafe impl Send for Datapath {}
-unsafe impl Sync for Datapath {}
+impl Default for DatapathBuilder<()> {
+    fn default() -> Self {
+        DatapathBuilder { id: 0, ops: () }
+    }
+}
 
-impl Datapath {
-    /// Initialize libccp and pass it an implementation of `Datapath` functionality.
-    pub fn init<T: DatapathOps + 'static>(dp: T) -> Result<Self, LibccpError> {
+impl<T> DatapathBuilder<T> {
+    /// Set the `id` of this datapath libccp will use to identify itself to the CCP runtime.
+    pub fn with_id(self, id: u32) -> Self {
+        Self { id, ..self }
+    }
+
+    /// Specify datapath-specific functionality.
+    ///
+    /// To be useful, T1 should impl `DatapathOps`.
+    pub fn with_ops<T1>(self, ops: T1) -> DatapathBuilder<T1> {
+        DatapathBuilder { id: self.id, ops }
+    }
+}
+
+impl<T: DatapathOps + 'static> DatapathBuilder<T> {
+    pub fn init(self) -> Result<Datapath, LibccpError> {
         // need 2 levels of Box so we can avoid passing a fat pointer down
-        let dp = Box::new(DatapathObj(Box::new(dp)));
+        let dp = Box::new(DatapathObj(Box::new(self.ops)));
         let conn_array = unsafe { libc::malloc(1024 * std::mem::size_of::<ccp::ccp_connection>()) };
         let mut dp = ccp::ccp_datapath {
             set_cwnd: Some(ccp::set_cwnd),
@@ -67,10 +102,26 @@ impl Datapath {
             impl_: Box::into_raw(dp) as *mut std::os::raw::c_void,
         };
 
-        let ok = unsafe { ccp::ccp_init(&mut dp) };
+        let ok = unsafe { ccp::ccp_init(&mut dp, self.id) };
         let e: LibccpError = ok.into();
         let e: Result<(), LibccpError> = e.into();
         e.map(|_| Datapath(dp))
+    }
+}
+
+/// Represents datapath functionality.
+/// libccp state is freed when this is dropped.
+pub struct Datapath(ccp::ccp_datapath);
+
+unsafe impl Send for Datapath {}
+unsafe impl Sync for Datapath {}
+
+impl Datapath {
+    /// Call `DatapathBuilder` with default id = 0.
+    /// Uses datapath id 0.
+    #[deprecated(since = "1.1.0", note = "Please use DatapathBuilder instead.")]
+    pub fn init<T: DatapathOps + 'static>(dp: T) -> Result<Self, LibccpError> {
+        DatapathBuilder::default().with_ops(dp).init()
     }
 
     /// When the datapath receives an IPC message from the congestion
@@ -433,16 +484,30 @@ mod tests {
     impl CongestionOps for Cn {
         fn set_cwnd(&mut self, cwnd: u32) {
             self.curr_cwnd = cwnd;
+            println!("cwnd = {:?}", self.curr_cwnd);
         }
 
         fn set_rate_abs(&mut self, rate: u32) {
             self.curr_rate = rate;
+            println!("rate = {:?}", self.curr_rate);
         }
     }
 
-    fn make_dp(expected_msgs: Vec<Option<Vec<u8>>>) -> Datapath {
+    fn make_dp(mut expected_msgs: Vec<Option<Vec<u8>>>) -> Datapath {
+        #[rustfmt::skip]
+        let rdy_msg = vec![
+            0x05,0x00,
+            0x0c,0x00,
+            0x00,0x00,0x00,0x00,
+            0xaa,0x00,0x00,0x00,
+        ];
+        expected_msgs.push(Some(rdy_msg));
         let dp = Dp { expected_msgs };
-        Datapath::init(dp).unwrap()
+        DatapathBuilder::default()
+            .with_ops(dp)
+            .with_id(0xaa)
+            .init()
+            .unwrap()
     }
 
     fn make_conn(d: &Datapath) -> Connection<Cn> {
