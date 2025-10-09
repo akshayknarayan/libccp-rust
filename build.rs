@@ -1,5 +1,3 @@
-extern crate bindgen;
-
 use std::env;
 use std::path::PathBuf;
 
@@ -7,15 +5,15 @@ fn main() {
     let mut libccp_make = std::process::Command::new("make");
     libccp_make.arg("libccp.a");
 
-    if cfg!(log_trace) {
+    if cfg!(feature = "log_trace") {
         libccp_make.arg("LOGLEVEL=trace");
-    } else if cfg!(log_debug) {
+    } else if cfg!(feature = "log_debug") {
         libccp_make.arg("LOGLEVEL=debug");
-    } else if cfg!(log_info) {
+    } else if cfg!(feature = "log_info") {
         libccp_make.arg("LOGLEVEL=info");
-    } else if cfg!(log_warn) {
+    } else if cfg!(feature = "log_warn") {
         libccp_make.arg("LOGLEVEL=warn");
-    } else if cfg!(log_error) {
+    } else if cfg!(feature = "log_error") {
         libccp_make.arg("LOGLEVEL=error");
     }
 
@@ -52,7 +50,6 @@ fn main() {
         .allowlist_function(r#"ccp_\w+"#)
         .allowlist_var(r#"LIBCCP_\w+"#)
         .blocklist_type(r#"u\d+"#)
-        .rustfmt_bindings(true)
         .generate()
         .expect("Unable to generate bindings");
 

@@ -214,8 +214,8 @@ pub use crate::primitives::Primitives;
 /// }
 /// struct Cn(u32);
 /// impl libccp::CongestionOps for Cn {
-///     fn set_cwnd(&mut self, cwnd: u32) { /* ___ */ }   
-///     fn set_rate_abs(&mut self, cwnd: u32) { /* ___ */ }   
+///     fn set_cwnd(&mut self, cwnd: u32) { /* ___ */ }
+///     fn set_rate_abs(&mut self, cwnd: u32) { /* ___ */ }
 /// }
 /// fn main() {
 ///     let d = libccp::Datapath::init(Dp()).unwrap();
@@ -227,7 +227,7 @@ pub use crate::primitives::Primitives;
 pub struct Connection<'dp, T: CongestionOps + 'static>(
     Arc<Mutex<*mut ccp::ccp_connection>>,
     Box<ConnectionObj>,
-    &'dp Datapath,
+    #[allow(dead_code)] &'dp Datapath,
     std::marker::PhantomData<T>,
 );
 
@@ -510,7 +510,7 @@ mod tests {
             .unwrap()
     }
 
-    fn make_conn(d: &Datapath) -> Connection<Cn> {
+    fn make_conn(d: &Datapath) -> Connection<'_, Cn> {
         let cn = Cn {
             curr_cwnd: 19,
             curr_rate: 89,
@@ -563,7 +563,7 @@ mod tests {
                 0x00, 0x00, 0x00, 0x00,
             ]),
             Some(vec![ // report msg
-                0x01, 0x00,                                     // type 
+                0x01, 0x00,                                     // type
                 0x18, 0x00,                                     // len
                 0x01, 0x00, 0x00, 0x00,                         // sockid
                 prims_prog_uid, 0x00, 0x00, 0x00,               // program_uid
@@ -577,12 +577,12 @@ mod tests {
 
         #[rustfmt::skip]
         let mut install_prims = vec![
-            2, 0,                                           // INSTALL                                                     
+            2, 0,                                           // INSTALL
             116, 0,                                         // length = 0x74 = 116
-            1, 0, 0, 0,                                     // sock_id = 1                                                 
+            1, 0, 0, 0,                                     // sock_id = 1
             prims_prog_uid, 0, 0, 0,                        // program_uid
-            1, 0, 0, 0,                                     // num_events = 1                                              
-            5, 0, 0, 0,                                     // num_instrs = 5                                              
+            1, 0, 0, 0,                                     // num_events = 1
+            5, 0, 0, 0,                                     // num_instrs = 5
             1, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, // event { flag-idx=1, num-flag=1, body-idx=2, num-body=3 }
             2, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 1, 0, 0, 0, 0, // (def (volatile Report.foo 0))
             1, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 1, 0, 0, 0, // (when true
@@ -594,7 +594,7 @@ mod tests {
         #[rustfmt::skip]
         let mut changeprog_msg = vec![
             4, 0,                                           // type
-            12, 0,                                          // length 
+            12, 0,                                          // length
             1, 0, 0, 0,                                     // sock id
             prims_prog_uid, 0, 0, 0,                        // program_uid
             0, 0, 0, 0,                                     // extra fields
@@ -630,7 +630,7 @@ mod tests {
         #[rustfmt::skip]
         let report =
             Some(vec![ // report msg
-                0x01, 0x00,                                     // type 
+                0x01, 0x00,                                     // type
                 0x18, 0x00,                                     // len
                 0x01, 0x00, 0x00, 0x00,                         // sockid
                 prims_prog_uid, 0x00, 0x00, 0x00,               // program_uid
@@ -668,12 +668,12 @@ mod tests {
 
         #[rustfmt::skip]
         let mut install_prims = vec![
-            2, 0,                                           // INSTALL                                                     
+            2, 0,                                           // INSTALL
             116, 0,                                         // length = 0x74 = 116
-            1, 0, 0, 0,                                     // sock_id = 1                                                 
+            1, 0, 0, 0,                                     // sock_id = 1
             prims_prog_uid, 0, 0, 0,                        // program_uid
-            1, 0, 0, 0,                                     // num_events = 1                                              
-            5, 0, 0, 0,                                     // num_instrs = 5                                              
+            1, 0, 0, 0,                                     // num_events = 1
+            5, 0, 0, 0,                                     // num_instrs = 5
             1, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, // event { flag-idx=1, num-flag=1, body-idx=2, num-body=3 }
             2, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 1, 0, 0, 0, 0, // (def (volatile Report.foo 0))
             1, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 1, 0, 0, 0, // (when true
@@ -685,7 +685,7 @@ mod tests {
         #[rustfmt::skip]
         let mut changeprog_msg = vec![
             4, 0,                                           // type
-            12, 0,                                          // length 
+            12, 0,                                          // length
             1, 0, 0, 0,                                     // sock id
             prims_prog_uid, 0, 0, 0,                        // program_uid
             0, 0, 0, 0,                                     // extra fields
@@ -735,7 +735,7 @@ mod tests {
                 0x00, 0x00, 0x00, 0x00,
             ]),
             Some(vec![ // report msg
-                0x01, 0x00,                                     // type 
+                0x01, 0x00,                                     // type
                 0x18, 0x00,                                     // len
                 0x01, 0x00, 0x00, 0x00,                         // sockid
                 basic_prog_uid, 0x00, 0x00, 0x00,               // program_uid
@@ -749,12 +749,12 @@ mod tests {
 
         #[rustfmt::skip]
         let mut install_basic = vec![
-            2, 0,                                           // INSTALL                                                     
+            2, 0,                                           // INSTALL
             116, 0,                                         // length = 0x74 = 116
-            1, 0, 0, 0,                                     // sock_id = 1                                                 
+            1, 0, 0, 0,                                     // sock_id = 1
             basic_prog_uid, 0, 0, 0,                        // program_uid
-            1, 0, 0, 0,                                     // num_events = 1                                              
-            5, 0, 0, 0,                                     // num_instrs = 5                                              
+            1, 0, 0, 0,                                     // num_events = 1
+            5, 0, 0, 0,                                     // num_instrs = 5
             1, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, // event { flag-idx=1, num-flag=1, body-idx=2, num-body=3 }
             2, 5, 0, 0, 0, 0, 5, 0, 0, 0, 0, 1, 0, 0, 0, 0, // (def (volatile Report.foo 0))
             1, 2, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 1, 0, 0, 0, // (when true
@@ -766,7 +766,7 @@ mod tests {
         #[rustfmt::skip]
         let mut changeprog_msg = vec![
             4, 0,                                           // type
-            12, 0,                                          // length 
+            12, 0,                                          // length
             1, 0, 0, 0,                                     // sock id
             basic_prog_uid, 0, 0, 0,                        // program_uid
             0, 0, 0, 0,                                     // extra fields
